@@ -30,6 +30,8 @@ parser.add_argument('-w', '--watch-new', help='watch for new processes that matc
                                               '(run forever)', action='store_true')
 parser.add_argument('--to', help='email address to send to [+]',
                     action='append', metavar='EMAIL_ADDRESS')
+parser.add_argument('--slack', help='slack channel to send to [+]',
+                    action='append', metavar='SLACK_CHANNEL')
 parser.add_argument('-n', '--notify', help='send DBUS Desktop notification', action='store_true')
 parser.add_argument('-i', '--interval', help='how often to check on processes. (default: 15.0 seconds)',
                     type=float, default=15.0, metavar='SECONDS')
@@ -49,7 +51,6 @@ log_level = logging.WARNING if args.quiet else logging.INFO
 log_format = '%(asctime)s %(levelname)s: %(message)s' if args.log else '%(message)s'
 logging.basicConfig(format=log_format, level=log_level)
 
-
 # Load communication protocols based present arguments
 # (library, send function keyword args)
 comms = []
@@ -59,6 +60,14 @@ if args.to:
         comms.append((communicate.email, {'to': args.to}))
     except:
         logging.exception('Failed to load email module. (required by --to)')
+        sys.exit(1)
+
+if args.slack:
+    try:
+        import communicate.slack
+        comms.append((communicate.slack, {'channel': args.slack}))
+    except:
+        logging.exception('Failed to load slack module. (required by --slack)')
         sys.exit(1)
 
 if args.notify:
@@ -78,7 +87,7 @@ if args.notify:
         logging.exception(exception_message)
         sys.exit(1)
 
-
+assert len(comms) > 0, "Must specify at least one communication channel"
 # dict of all the process watching objects pid -> ProcessByPID
 # items removed when process ends
 watched_processes = {}
